@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hiring Funnel Math</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: controls rail on the left, answer-first results on the right; the funnel reads top-down like a pipeline report. */
+:root {
+  --bg: #f3f2ee;
+  --surface: #ffffff;
+  --ink: #17191c;
+  --muted: #5d636b;
+  --line: #dedcd5;
+  --accent: #0b6e69;
+  --accent-soft: #dcefed;
+  --bench: #b7791f;
+  --good: #1f7a3d;
+  --warn: #b45309;
+  --bad: #b42318;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Manrope", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121416; --surface: #1b1e21; --ink: #eceae4; --muted: #a2a8ae; --line: #2e3337;
+    --accent: #4fc3b8; --accent-soft: #173533; --bench: #e0a64a; --good: #5cc283; --warn: #f0a24a; --bad: #f27a6e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121416; --surface: #1b1e21; --ink: #eceae4; --muted: #a2a8ae; --line: #2e3337;
+  --accent: #4fc3b8; --accent-soft: #173533; --bench: #e0a64a; --good: #5cc283; --warn: #f0a24a; --bad: #f27a6e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 40px; }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 20px; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 30px; margin: 0; letter-spacing: -0.5px; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 62ch; }
+.grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+.card h2 { font-family: var(--font-display); font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+.field { display: grid; gap: 5px; margin-bottom: 14px; }
+.field label { font-weight: 600; font-size: 13px; }
+.field .hint { font-size: 12px; color: var(--muted); }
+input[type=number], input[type=date], select { font-size: 14px;
+  width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 7px; padding: 8px 10px; font-variant-numeric: tabular-nums;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 13px; font-weight: 600; padding: 8px 4px; border: 0; background: var(--bg); color: var(--muted); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; align-items: end; }
+input { min-width: 0; }
+
+.answer { display: grid; gap: 14px; }
+.headline { font-family: var(--font-display); font-size: 24px; font-weight: 700; line-height: 1.25; margin: 0; text-wrap: balance; }
+.headline em { font-style: normal; color: var(--accent); }
+.status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 999px; width: fit-content; }
+.status.ok { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+.status.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.status.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 620px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+.tile .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.tile .v { font-family: var(--font-display); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tile .v small { font-size: 13px; color: var(--muted); font-family: var(--font-body); font-weight: 600; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+
+.funnel { display: grid; gap: 6px; }
+.row { display: grid; grid-template-columns: 150px 1fr 92px 88px; gap: 10px; align-items: center; font-variant-numeric: tabular-nums; }
+@media (max-width: 620px) { .row { grid-template-columns: 110px 1fr 70px; } .row .wk { display: none; } }
+.row .name { font-weight: 600; font-size: 14px; }
+.row .name span { display: block; font-size: 11.5px; color: var(--muted); font-weight: 500; }
+.bar { height: 26px; background: var(--bg); border-radius: 5px; position: relative; overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 5px; min-width: 3px; transition: width .25s ease; }
+.row.outreach .bar i { background: color-mix(in srgb, var(--accent) 55%, var(--surface)); }
+.row .num { text-align: right; font-weight: 700; font-size: 16px; }
+.row .wk { text-align: right; color: var(--muted); font-size: 13px; }
+.funnel .head { font-size: 12px; color: var(--muted); font-weight: 600; }
+.funnel .head .bar { background: none; height: auto; }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); font-size: 14px; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+td.r, th.r { text-align: right; }
+td input[type=number] { width: 84px; text-align: right; padding: 6px 8px; }
+.chip { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.chip.up { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.chip.down { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.chip.eq { color: var(--muted); background: var(--bg); }
+.bench { color: var(--bench); font-weight: 700; }
+.tablewrap { overflow-x: auto; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 13px; font-weight: 700; padding: 8px 12px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:hover { filter: brightness(0.97); }
+footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); display: grid; gap: 4px; }
+.sr { position: absolute; left: -9999px; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Hiring Funnel Math</h1>
+      <p class="sub">Work backwards from your hire date. Pick a role and source to load the 2025 benchmark rates, then swap in your own numbers.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="resetBtn" type="button">Reset to benchmarks</button>
+      <button class="btn primary" id="copyBtn" type="button">Copy plan</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <aside class="card" aria-label="Inputs">
+      <h2>Your search</h2>
+      <div class="field">
+        <label for="hires">Hires needed</label>
+        <input id="hires" type="number" min="1" step="1" value="1">
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="start">Start sourcing</label>
+          <input id="start" type="date">
+        </div>
+        <div class="field">
+          <label for="target">Hire by</label>
+          <input id="target" type="date">
+        </div>
+      </div>
+      <div class="field">
+        <label for="dept">Department</label>
+        <select id="dept"></select>
+      </div>
+      <div class="field">
+        <span id="srcLabel" style="font-weight:600;font-size:13px">Candidate source</span>
+        <div class="seg" role="group" aria-labelledby="srcLabel">
+          <button type="button" data-src="outbound" aria-pressed="true">Sourced</button>
+          <button type="button" data-src="inbound" aria-pressed="false">Inbound</button>
+          <button type="button" data-src="all" aria-pressed="false">All</button>
+        </div>
+        <span class="hint" id="srcHint"></span>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="capacity">Max outreach / day</label>
+          <input id="capacity" type="number" min="1" step="1" value="40">
+        </div>
+        <div class="field">
+          <label for="lag">Reply lag (days)</label>
+          <input id="lag" type="number" min="0" step="1" value="10">
+        </div>
+      </div>
+      <div class="field">
+        <label for="days">Days from process start to hire</label>
+        <input id="days" type="number" min="1" step="1">
+        <span class="hint" id="daysHint"></span>
+      </div>
+    </aside>
+
+    <main class="answer">
+      <section class="card answer" aria-live="polite">
+        <span class="status" id="status"></span>
+        <p class="headline" id="headline"></p>
+        <div class="tiles">
+          <div class="tile"><div class="k" id="t1k">Contacts needed</div><div class="v" id="t1"></div></div>
+          <div class="tile"><div class="k" id="t2k">Per working day</div><div class="v" id="t2"></div></div>
+          <div class="tile"><div class="k">Sourcing window</div><div class="v" id="t3"></div></div>
+          <div class="tile"><div class="k">Pipeline cutoff</div><div class="v" id="t4"></div></div>
+        </div>
+        <p class="note" id="explain"></p>
+      </section>
+
+      <section class="card">
+        <h2>Pipeline you need</h2>
+        <div class="funnel" id="funnel"></div>
+      </section>
+
+      <section class="card">
+        <h2>Conversion rates: yours vs. benchmark</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Stage</th><th class="r">Your rate</th><th class="r">Benchmark</th><th class="r">Diff</th></tr></thead>
+            <tbody id="rates"></tbody>
+          </table>
+        </div>
+        <p class="note" style="margin-top:10px">Edit any rate to match your own data. Reply and process rates are a share of everyone contacted, the way outreach tools report them.</p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <span>Benchmark source: Gem, <cite>2026 Recruiting Benchmarks Report</cite>, funnel and outreach rates for Jun 2024–May 2025. Department rates cover all sources; when you choose Sourced with a department, the first screen rate uses the sourced benchmark (86%).</span>
+    <span>The model assumes every candidate enters the process by the pipeline cutoff and moves at the median pace. Built by Isaac Kironde · TheKiosk.</span>
+  </footer>
+</div>
+
+<script>
+// Gem 2026 Recruiting Benchmarks, period 6/2024–5/2025. Rates in %.
+// a: Application→Pre-Onsite, b: Pre-Onsite→Onsite, c: Onsite→Offer, d: Offer→Hire, days: median days to hire.
+const SOURCES = {
+  all:      { label: "All sources",   a: 8,  b: 19, c: 39, d: 82, days: 24 },
+  inbound:  { label: "Inbound",       a: 6,  b: 16, c: 37, d: 81, days: 24 },
+  outbound: { label: "Sourced",       a: 86, b: 18, c: 22, d: 73, days: 41 }
+};
+const OUTREACH = { reply: 23, interested: 13, process: 8 }; // % of contacted (email sequences)
+const DEPTS = {
+  "all":          { label: "All departments" },
+  "eng":          { label: "Engineering",              a: 6,  b: 17, c: 29, d: 73, days: 39 },
+  "ds":           { label: "Data Science",             a: 4,  b: 17, c: 25, d: 77, days: 42 },
+  "pm":           { label: "Product Management",       a: 5,  b: 17, c: 25, d: 82, days: 38 },
+  "design":       { label: "Design",                   a: 5,  b: 18, c: 28, d: 82, days: 43 },
+  "sales":        { label: "Sales",                    a: 11, b: 20, c: 38, d: 87, days: 26 },
+  "marketing":    { label: "Marketing",                a: 5,  b: 16, c: 31, d: 87, days: 35 },
+  "cs":           { label: "Customer Success",         a: 4,  b: 19, c: 43, d: 86, days: 26 },
+  "support":      { label: "Customer Service/Support", a: 8,  b: 22, c: 42, d: 86, days: 21 },
+  "biz":          { label: "Business/Strategy",        a: 5,  b: 21, c: 32, d: 82, days: 34 },
+  "ops":          { label: "Operations",               a: 9,  b: 18, c: 42, d: 86, days: 22 },
+  "people":       { label: "People/HR",                a: 5,  b: 17, c: 36, d: 81, days: 27 },
+  "finance":      { label: "Finance",                  a: 7,  b: 14, c: 33, d: 85, days: 34 },
+  "legal":        { label: "Legal/Compliance",         a: 5,  b: 21, c: 29, d: 87, days: 41 },
+  "it":           { label: "IT/Infosec",               a: 8,  b: 15, c: 31, d: 82, days: 35 }
+};
+const STAGE_KEYS = [
+  { k: "reply",   name: "Reply rate",               outreach: true },
+  { k: "process", name: "Contacted → in process",   outreach: true },
+  { k: "a",       name: "Application → screen" },
+  { k: "b",       name: "Screen → onsite" },
+  { k: "c",       name: "Onsite → offer" },
+  { k: "d",       name: "Offer → hire" }
+];
+
+const $ = id => document.getElementById(id);
+let state = { src: "outbound", dept: "eng", rates: {}, bench: {}, benchDays: 0 };
+
+function iso(d) { return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function parse(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function workdays(a, b) { // working days from a (inclusive) up to b (exclusive)
+  let n = 0; const x = new Date(a);
+  while (x < b) { const w = x.getDay(); if (w !== 0 && w !== 6) n++; x.setDate(x.getDate() + 1); }
+  return n;
+}
+function fmtDate(d) { return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
+function fmt(n) { return Math.ceil(n).toLocaleString(); }
+
+function benchmark() {
+  const s = SOURCES[state.src];
+  const dp = DEPTS[state.dept];
+  let r, days, prov;
+  if (state.dept === "all") {
+    r = { a: s.a, b: s.b, c: s.c, d: s.d }; days = s.days; prov = s.label;
+  } else {
+    r = { a: state.src === "outbound" ? SOURCES.outbound.a : dp.a, b: dp.b, c: dp.c, d: dp.d };
+    days = dp.days; prov = dp.label;
+  }
+  r.reply = OUTREACH.reply; r.process = OUTREACH.process;
+  return { r, days, prov };
+}
+
+function loadBenchmarks() {
+  const { r, days, prov } = benchmark();
+  state.bench = { ...r }; state.rates = { ...r }; state.benchDays = days;
+  $("days").value = days;
+  $("daysHint").textContent = "Benchmark median: " + days + " days (" + prov + ")";
+  $("srcHint").textContent = state.src === "outbound"
+    ? "Sourced: 2.5% of candidates in process get hired, vs 0.3% inbound."
+    : state.src === "inbound" ? "Inbound: about 1 in 300 applicants is hired." : "Blended inbound and sourced rates.";
+  renderRates();
+  calc();
+}
+
+function renderRates() {
+  const outreach = state.src === "outbound";
+  $("rates").innerHTML = STAGE_KEYS.filter(s => outreach || !s.outreach).map(s => {
+    const v = state.rates[s.k], b = state.bench[s.k];
+    const diff = Math.round((v - b) * 10) / 10;
+    const cls = diff > 0 ? "up" : diff < 0 ? "down" : "eq";
+    const txt = diff === 0 ? "even" : (diff > 0 ? "+" : "") + diff + " pts";
+    return `<tr><td>${s.name}</td>
+      <td class="r"><label class="sr" for="r-${s.k}">${s.name} rate</label><input id="r-${s.k}" data-k="${s.k}" type="number" min="0.1" max="100" step="0.5" value="${v}">%</td>
+      <td class="r bench">${b}%</td><td class="r"><span class="chip ${cls}" id="d-${s.k}">${txt}</span></td></tr>`;
+  }).join("");
+  $("rates").querySelectorAll("input").forEach(inp => inp.addEventListener("input", e => {
+    const k = e.target.dataset.k, v = parseFloat(e.target.value);
+    if (!(v > 0)) return;
+    state.rates[k] = Math.min(v, 100);
+    const diff = Math.round((state.rates[k] - state.bench[k]) * 10) / 10;
+    const chip = $("d-" + k);
+    chip.className = "chip " + (diff > 0 ? "up" : diff < 0 ? "down" : "eq");
+    chip.textContent = diff === 0 ? "even" : (diff > 0 ? "+" : "") + diff + " pts";
+    calc();
+  }));
+}
+
+let lastPlan = "";
+function calc() {
+  const outreach = state.src === "outbound";
+  const R = k => state.rates[k] / 100;
+  const hires = Math.max(1, parseInt($("hires").value) || 1);
+  const days = Math.max(1, parseInt($("days").value) || state.benchDays);
+  const lag = outreach ? Math.max(0, parseInt($("lag").value) || 0) : 0;
+  const cap = Math.max(1, parseInt($("capacity").value) || 1);
+  const start = parse($("start").value), target = parse($("target").value);
+
+  const offers = hires / R("d"), onsites = offers / R("c"), screens = onsites / R("b"), inproc = screens / R("a");
+  const contacts = outreach ? inproc / R("process") : null;
+  const replies = outreach ? contacts * R("reply") : null;
+
+  const cutoff = addDays(target, -days);           // everyone in process by here
+  const lastSend = addDays(cutoff, -lag);           // last day to send outreach
+  const wd = workdays(start, addDays(lastSend, 1));
+  const top = outreach ? contacts : inproc;
+  const perDay = wd > 0 ? top / wd : Infinity;
+  const weeks = Math.max(wd / 5, 0.2);
+
+  // Feasibility
+  let statusCls, statusTxt, headline;
+  const unit = outreach ? "people" : "applicants";
+  const verb = outreach ? "Reach out to" : "Get";
+  if (wd <= 0) {
+    const needDays = Math.ceil(top / cap);
+    let d = new Date(start), n = 0;
+    while (n < needDays) { if (d.getDay() % 6 !== 0) n++; if (n < needDays) d = addDays(d, 1); }
+    const earliest = addDays(d, lag + days + 1);
+    statusCls = "bad"; statusTxt = "Not enough time";
+    headline = `At the median pace this hire lands around <em>${fmtDate(earliest)}</em>, not ${fmtDate(target)}.`;
+  } else if (outreach && perDay > cap) {
+    const reachable = cap * wd;
+    const projected = reachable * R("process") * R("a") * R("b") * R("c") * R("d");
+    statusCls = "warn"; statusTxt = "Over your daily capacity";
+    headline = `${verb} <em>${fmt(top)} ${unit}</em>, or ${fmt(perDay)} a day. At ${cap} a day you'd land about ${projected.toFixed(1)} of ${hires} hire${hires > 1 ? "s" : ""} by ${fmtDate(target)}.`;
+  } else {
+    statusCls = "ok"; statusTxt = "On track";
+    headline = `${verb} <em>${fmt(top)} ${unit}</em> by ${fmtDate(lastSend)}, about <em>${fmt(perDay)} a working day</em>, to make ${hires} hire${hires > 1 ? "s" : ""} by ${fmtDate(target)}.`;
+  }
+  $("status").className = "status " + statusCls; $("status").textContent = statusTxt;
+  $("headline").innerHTML = headline;
+  $("t1k").textContent = outreach ? "Contacts needed" : "Applicants needed";
+  $("t2k").textContent = outreach ? "Outreach per day" : "Applicants per day";
+  $("t1").textContent = fmt(top);
+  $("t2").innerHTML = wd > 0 ? fmt(perDay) + (outreach ? ` <small>/ ${cap} cap</small>` : "") : "—";
+  $("t3").innerHTML = wd > 0 ? `${wd} <small>work days</small>` : "0";
+  $("t4").textContent = fmtDate(cutoff);
+  $("explain").textContent = outreach
+    ? `Sourcing closes ${fmtDate(lastSend)}: ${lag} days for replies to turn into screens, then a ${days}-day median from first screen to hire, landing ${fmtDate(target)}.`
+    : `Applicants need to be in your pipeline by ${fmtDate(cutoff)}, given a ${days}-day median from application to hire.`;
+
+  // Funnel
+  const stages = [];
+  if (outreach) {
+    stages.push({ n: "Contacted", s: "sent a sequence", v: contacts, o: true });
+    stages.push({ n: "Replied", s: R("reply") * 100 + "% of contacted", v: replies, o: true });
+  }
+  stages.push({ n: outreach ? "In process" : "Applied", s: outreach ? state.rates.process + "% of contacted" : "entered the ATS", v: inproc });
+  stages.push({ n: "Screened", s: "pre-onsite stages", v: screens });
+  stages.push({ n: "Onsite", s: "final loop", v: onsites });
+  stages.push({ n: "Offers", s: "extended", v: offers });
+  stages.push({ n: "Hires", s: "accepted", v: hires });
+  const max = stages[0].v;
+  $("funnel").innerHTML =
+    `<div class="row head"><span>Stage</span><span class="bar"></span><span class="num" style="font-size:12px">Total</span><span class="wk">Per week</span></div>` +
+    stages.map(s => `<div class="row ${s.o ? "outreach" : ""}">
+      <div class="name">${s.n}<span>${s.s}</span></div>
+      <div class="bar" aria-hidden="true"><i style="width:${Math.max(0.6, (s.v / max) * 100)}%"></i></div>
+      <div class="num">${fmt(s.v)}</div>
+      <div class="wk">${wd > 0 ? (s.v / weeks).toFixed(s.v / weeks < 10 ? 1 : 0) : "—"}</div>
+    </div>`).join("");
+
+  // Plain-text plan for Copy
+  const deptLabel = DEPTS[state.dept].label;
+  lastPlan = [
+    `Hiring plan: ${hires} hire${hires > 1 ? "s" : ""}, ${deptLabel}, ${SOURCES[state.src].label}, by ${fmtDate(target)}`,
+    ...stages.map(s => `- ${s.n}: ${fmt(s.v)}`),
+    wd > 0 ? `Sourcing window: ${wd} working days (${fmtDate(start)} to ${fmtDate(lastSend)}), ${fmt(perDay)} ${outreach ? "contacts" : "applicants"} per day` : `Not enough time at median pace`,
+    `Rates: ` + STAGE_KEYS.filter(s => outreach || !s.outreach).map(s => `${s.name} ${state.rates[s.k]}%`).join(", "),
+    `Benchmarks: Gem 2026 Recruiting Benchmarks Report (Jun 2024 to May 2025)`
+  ].join("\n");
+}
+
+// Init
+(function init() {
+  const sel = $("dept");
+  sel.innerHTML = Object.entries(DEPTS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("");
+  sel.value = state.dept;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  $("start").value = iso(today);
+  $("target").value = iso(addDays(today, 75));
+  sel.addEventListener("change", e => { state.dept = e.target.value; loadBenchmarks(); });
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    state.src = b.dataset.src;
+    document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    document.querySelector("#lag").closest(".field").style.opacity = state.src === "outbound" ? 1 : 0.45;
+    loadBenchmarks();
+  }));
+  ["hires", "start", "target", "capacity", "lag", "days"].forEach(id => $(id).addEventListener("input", calc));
+  $("resetBtn").addEventListener("click", loadBenchmarks);
+  $("copyBtn").addEventListener("click", async () => {
+    const btn = $("copyBtn");
+    try { await navigator.clipboard.writeText(lastPlan); btn.textContent = "Copied"; }
+    catch (e) { btn.textContent = "Copy blocked"; }
+    setTimeout(() => btn.textContent = "Copy plan", 1600);
+  });
+  loadBenchmarks();
+})();
+</script>
+</body>
+</html>
